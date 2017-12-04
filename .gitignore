@@ -60,5 +60,5 @@ typings/
 .vscode
 .history
 .idea
-dist
+# dist
 docs

@@ -1,48 +1,58 @@
-import { RequestOptions } from 'https';
-import * as url from 'url';
+import { RequestOptions } from "https";
+import * as url from "url";
 
-import { ITask, ITasks, IUpdateTask, ITaskOptions, IListTasksOptions } from './grammar';
-import { ITemplate, ITemplates, ITemplateOptions, IListTemplatesOptions } from './grammar';
-import { escape, camelToDash, formatAttrName } from './grammar';
-import { IConfigSections, IConfigSection, IConfigElement } from './grammar';
-import { IPingStats, IPoolOptions, Pool } from './pool';
-import { assertNoErrors, RequestError} from './results';
+import {
+  ITask,
+  ITasks,
+  IUpdateTask,
+  ITaskOptions,
+  IListTasksOptions
+} from "./grammar";
+import {
+  ITemplate,
+  ITemplates,
+  ITemplateOptions,
+  IListTemplatesOptions
+} from "./grammar";
+import { escape, camelToDash, formatAttrName } from "./grammar";
+import { IConfigSections, IConfigSection, IConfigElement } from "./grammar";
+import { IPingStats, IPoolOptions, Pool } from "./pool";
+import { assertNoErrors, RequestError } from "./results";
 
 const defaultHost: IHostConfig = Object.freeze({
-  host: '127.0.0.1',
+  host: "127.0.0.1",
   port: 9092,
-  protocol: <'http'> 'http',
+  protocol: <"http">"http"
 });
 
-export * from  './grammar';
-export { IPingStats, IPoolOptions } from './pool';
-export { IResponse, ResultError } from './results';
+export * from "./grammar";
+export { IPingStats, IPoolOptions } from "./pool";
+export { IResponse, ResultError } from "./results";
 
 export interface ConfigUpdateAction {
   /**
    * Set the value in the configuration overrides.
    */
   set?: {
-    [Attr: string]: any
-  },
+    [Attr: string]: any;
+  };
   /**
    * Delete the value from the configuration overrides.
    */
-  delete?: string[],
+  delete?: string[];
   /**
    * Add a new element to a list configuration section.
    */
   add?: {
-    [Attr: string]: any
-  },
+    [Attr: string]: any;
+  };
   /**
    * Remove a previously added element from a list configuration section.
    */
-  remove?: string[]
+  remove?: string[];
 }
 
 export interface IHostConfig {
-
   /**
    * Kapacitor host to connect to, defaults to 127.0.0.1.
    */
@@ -54,13 +64,12 @@ export interface IHostConfig {
   /**
    * Protocol to connect over, defaults to 'http'.
    */
-  protocol?: 'http' | 'https';
+  protocol?: "http" | "https";
 
   /**
    * Optional request option overrides.
    */
   options?: RequestOptions;
-
 }
 
 export interface ISingleHostConfig extends IHostConfig {
@@ -90,7 +99,7 @@ function parseOptionsUrl(addr: string): ISingleHostConfig {
   const options: ISingleHostConfig = {
     host: String(parsed.hostname),
     port: Number(parsed.port),
-    protocol: <'http' | 'https'> String(parsed.protocol).slice(0, -1),
+    protocol: <"http" | "https">String(parsed.protocol).slice(0, -1)
   };
 
   return options;
@@ -131,7 +140,6 @@ function defaults<T>(target: any, ...srcs: any[]): T {
  * ```
  */
 export class Kapacitor {
-
   /**
    * Connect pool for making requests.
    * @private
@@ -193,35 +201,43 @@ export class Kapacitor {
    * })
    * ```
    */
-  constructor (options?: string | ISingleHostConfig | IClusterConfig) {
+  constructor(options?: string | ISingleHostConfig | IClusterConfig) {
     // Figure out how to parse whatever we were passed in into a IClusterConfig.
-    if (typeof options === 'string') { // plain URI => ISingleHostConfig
+    if (typeof options === "string") {
+      // plain URI => ISingleHostConfig
       options = parseOptionsUrl(options);
     } else if (!options) {
       options = defaultHost;
     }
-    if (!options.hasOwnProperty('hosts')) { // ISingleHostConfig => IClusterConfig
+    if (!options.hasOwnProperty("hosts")) {
+      // ISingleHostConfig => IClusterConfig
       options = <IClusterConfig>{
         hosts: [options],
         pool: options.pool
       };
     }
 
-    const resolved = <IClusterConfig> options;
+    const resolved = <IClusterConfig>options;
     resolved.hosts = resolved.hosts.map(host => {
-      return defaults({
-        host: host.host,
-        port: host.port,
-        protocol: host.protocol,
-        options: host.options,
-      }, defaultHost);
+      return defaults(
+        {
+          host: host.host,
+          port: host.port,
+          protocol: host.protocol,
+          options: host.options
+        },
+        defaultHost
+      );
     });
 
     this.pool = new Pool(resolved.pool);
     this.options = defaults(resolved, { hosts: [] });
 
     resolved.hosts.forEach(host => {
-      this.pool.addHost(`${host.protocol}://${host.host}:${host.port}`, host.options);
+      this.pool.addHost(
+        `${host.protocol}://${host.host}:${host.port}`,
+        host.options
+      );
     });
   }
 
@@ -269,15 +285,15 @@ export class Kapacitor {
    * ```
    */
   public createTask(task: ITask): Promise<ITask> {
-    if (task.script) {
-      task.script = escape.quoted(task.script);
-    }
-
-    return this.pool.json(this.getRequestOpts({
-      method: 'POST',
-      path: 'tasks',
-      body: JSON.stringify(formatAttrName(task))
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          method: "POST",
+          path: "tasks",
+          body: JSON.stringify(formatAttrName(task))
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -338,11 +354,15 @@ export class Kapacitor {
       template.script = escape.quoted(template.script);
     }
 
-    return this.pool.json(this.getRequestOpts({
-      method: 'POST',
-      path: 'templates',
-      body: JSON.stringify(formatAttrName(template))
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          method: "POST",
+          path: "templates",
+          body: JSON.stringify(formatAttrName(template))
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -359,17 +379,18 @@ export class Kapacitor {
    * ```
    */
   public updateTask(task: IUpdateTask): Promise<ITask> {
-    if (task.script) {
-      task.script = escape.quoted(task.script);
-    }
     const taskId = task.id;
     delete task.id;
 
-    return this.pool.json(this.getRequestOpts({
-      method: 'PATCH',
-      path: 'tasks/' + taskId,
-      body: JSON.stringify(formatAttrName(task))
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          method: "PATCH",
+          path: "tasks/" + taskId,
+          body: JSON.stringify(formatAttrName(task))
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -397,11 +418,15 @@ export class Kapacitor {
     const templateId = template.id;
     delete template.id;
 
-    return this.pool.json(this.getRequestOpts({
-      method: 'PATCH',
-      path: 'templates/' + templateId,
-      body: JSON.stringify(formatAttrName(template))
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          method: "PATCH",
+          path: "templates/" + templateId,
+          body: JSON.stringify(formatAttrName(template))
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -415,10 +440,12 @@ export class Kapacitor {
    * ```
    */
   public async removeTask(taskId: string): Promise<void> {
-    const res = await this.pool.json(this.getRequestOpts({
-      method: 'DELETE',
-      path: 'tasks/' + taskId
-    }));
+    const res = await this.pool.json(
+      this.getRequestOpts({
+        method: "DELETE",
+        path: "tasks/" + taskId
+      })
+    );
     assertNoErrors(res);
   }
 
@@ -433,10 +460,12 @@ export class Kapacitor {
    * ```
    */
   public async removeTemplate(templateId: string): Promise<void> {
-    const res = await this.pool.json(this.getRequestOpts({
-      method: 'DELETE',
-      path: 'templates/' + templateId
-    }));
+    const res = await this.pool.json(
+      this.getRequestOpts({
+        method: "DELETE",
+        path: "templates/" + templateId
+      })
+    );
     assertNoErrors(res);
   }
 
@@ -461,13 +490,19 @@ export class Kapacitor {
    */
   public getTask(taskId: string, query?: ITaskOptions): Promise<ITask> {
     if (query) {
-      query.dotView = query.dotView ? query.dotView : 'attributes';
-      query.scriptFormat = query.scriptFormat ? query.scriptFormat : 'formatted';
+      query.dotView = query.dotView ? query.dotView : "attributes";
+      query.scriptFormat = query.scriptFormat
+        ? query.scriptFormat
+        : "formatted";
     }
-    return this.pool.json(this.getRequestOpts({
-      path: 'tasks/' + taskId,
-      query: query ? camelToDash(query, true) : undefined
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          path: "tasks/" + taskId,
+          query: query ? camelToDash(query, true) : undefined
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -489,14 +524,23 @@ export class Kapacitor {
    * })
    * ```
    */
-  public getTemplate(templateId: string, query?: ITemplateOptions): Promise<ITemplate> {
+  public getTemplate(
+    templateId: string,
+    query?: ITemplateOptions
+  ): Promise<ITemplate> {
     if (query) {
-      query.scriptFormat = query.scriptFormat ? query.scriptFormat : 'formatted';
+      query.scriptFormat = query.scriptFormat
+        ? query.scriptFormat
+        : "formatted";
     }
-    return this.pool.json(this.getRequestOpts({
-      path: 'templates/' + templateId,
-      query: query ? camelToDash(query) : undefined
-    })).then(assertNoErrors);
+    return this.pool
+      .json(
+        this.getRequestOpts({
+          path: "templates/" + templateId,
+          query: query ? camelToDash(query) : undefined
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -514,15 +558,21 @@ export class Kapacitor {
    */
   public getTasks(query?: IListTasksOptions): Promise<ITasks> {
     if (query) {
-      query.dotView = query.dotView ? query.dotView : 'attributes';
-      query.scriptFormat = query.scriptFormat ? query.scriptFormat : 'formatted';
+      query.dotView = query.dotView ? query.dotView : "attributes";
+      query.scriptFormat = query.scriptFormat
+        ? query.scriptFormat
+        : "formatted";
       query.offset = query.offset ? query.offset : 0;
       query.limit = query.limit ? query.limit : 100;
     }
-    return <Promise<ITasks>>this.pool.json(this.getRequestOpts({
-      path: 'tasks',
-      query: query ? camelToDash(query) : undefined
-    })).then(assertNoErrors);
+    return <Promise<ITasks>>this.pool
+      .json(
+        this.getRequestOpts({
+          path: "tasks",
+          query: query ? camelToDash(query) : undefined
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -540,14 +590,20 @@ export class Kapacitor {
    */
   public getTemplates(query?: IListTemplatesOptions): Promise<ITemplates> {
     if (query) {
-      query.scriptFormat = query.scriptFormat ? query.scriptFormat : 'formatted';
+      query.scriptFormat = query.scriptFormat
+        ? query.scriptFormat
+        : "formatted";
       query.offset = query.offset ? query.offset : 0;
       query.limit = query.limit ? query.limit : 100;
     }
-    return <Promise<ITemplates>>this.pool.json(this.getRequestOpts({
-      path: 'templates',
-      query: query ? camelToDash(query) : undefined
-    })).then(assertNoErrors);
+    return <Promise<ITemplates>>this.pool
+      .json(
+        this.getRequestOpts({
+          path: "templates",
+          query: query ? camelToDash(query) : undefined
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -566,12 +622,20 @@ export class Kapacitor {
    * }, 'influxdb', 'default');
    * ```
    */
-  public async updateConfig(action: ConfigUpdateAction, section: string, element?: string): Promise<void> {
-    await this.pool.json(this.getRequestOpts({
-      method: 'POST',
-      path: 'config/' + section + (element ? '/' + element : ''),
-      body: JSON.stringify(action)
-    })).then(assertNoErrors);
+  public async updateConfig(
+    action: ConfigUpdateAction,
+    section: string,
+    element?: string
+  ): Promise<void> {
+    await this.pool
+      .json(
+        this.getRequestOpts({
+          method: "POST",
+          path: "config/" + section + (element ? "/" + element : ""),
+          body: JSON.stringify(action)
+        })
+      )
+      .then(assertNoErrors);
   }
   /**
    * Get config.
@@ -586,11 +650,21 @@ export class Kapacitor {
    * })
    * ```
    */
-  public getConfig(section?: string, element?: string): Promise<IConfigSections|IConfigSection|IConfigElement> {
-    const path = 'config' + (section ? '/' + section : '') + (element ? '/' + element : '')
-    return <Promise<IConfigSections|IConfigSection|IConfigElement>>this.pool.json(this.getRequestOpts({
-      path
-    })).then(assertNoErrors);
+  public getConfig(
+    section?: string,
+    element?: string
+  ): Promise<IConfigSections | IConfigSection | IConfigElement> {
+    const path =
+      "config" +
+      (section ? "/" + section : "") +
+      (element ? "/" + element : "");
+    return <Promise<IConfigSections | IConfigSection | IConfigElement>>this.pool
+      .json(
+        this.getRequestOpts({
+          path
+        })
+      )
+      .then(assertNoErrors);
   }
 
   /**
@@ -598,15 +672,19 @@ export class Kapacitor {
    * @private
    */
   private getRequestOpts(opt: {
-    path: string,
-    method?: string,
-    body?: string,
-    query?: string
+    path: string;
+    method?: string;
+    body?: string;
+    query?: string;
   }): any {
-    return Object.assign({
-      method: 'GET'
-    }, opt, {
-      path: url.resolve('/kapacitor/v1/', opt.path)
-    });
+    return Object.assign(
+      {
+        method: "GET"
+      },
+      opt,
+      {
+        path: url.resolve("/kapacitor/v1/", opt.path)
+      }
+    );
   }
 }
